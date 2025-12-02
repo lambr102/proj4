@@ -66,7 +66,7 @@ int read_http_request(int fd, char *resource_name) {
 
 
     int bytes_read;
-    while (read(fd, buf, BUFSIZE) > 0) {
+    while ((bytes_read = read(fd, buf, BUFSIZE)) > 0) {
         continue;
     }
 
