@@ -28,9 +28,64 @@ int main(int argc, char **argv) {
         return 1;
     }
     // Uncomment the lines below to use these definitions:
-    // const char *serve_dir = argv[1];
-    // const char *port = argv[2];
+    const char *serve_dir = argv[1];
+    const char *port = argv[2];
 
-    // TODO Complete the rest of this function
+    // Handling SIGINT
+    struct sigaction sigact;
+    sigact.sa_handler = handle_sigint;
+    sigfillset(&sigact.sa_mask);
+    sigact.sa_flags = 0;
+    if (sigaction(SIGINT, &sigact, NULL) == -1) {
+        perror("sigaction");
+        return 1;
+    }
+
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+    struct addrinfo *server;
+
+    int ret_val = getaddrinfo(NULL, port, &hints, &server);
+    if (ret_val != 0) {
+        fprintf(stderr, "getaddrinfo failed: %s\n", gai_strerror(ret_val));
+        return 1;
+    }
+
+    int sock_fd = socket(server->ai_family, server->ai_socktype, server->ai_protocol);
+    if (sock_fd == -1) {
+        perror("socket");
+        freeaddrinfo(server);
+        return 1;
+    }
+
+    if (bind(sock_fd, server->ai_addr, server->ai_addrlen) == -1) {
+        perror("bind");
+        freeaddrinfo(server);
+        close(sock_fd);
+        return 1;
+    }
+    freeaddrinfo(server);
+
+    if (listen(sock_fd, LISTEN_QUEUE_LEN) == -1) {
+        perror("listen");
+        close(sock_fd);
+        return 1;
+    }
+    while (keep_going != 0){
+        int client_fd = accept(sock_fd, NULL, NULL);
+        if (client_fd == -1) {
+            if (errno != EINTR) {
+                perror("accept");
+                close(sock_fd);
+                return 1;
+            } else {
+                break;
+            }
+        }
+    }
+
     return 0;
 }
