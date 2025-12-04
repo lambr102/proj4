@@ -4,7 +4,7 @@
 #include <string.h>
 
 int connection_queue_init(connection_queue_t *queue) {
-    // TODO Not yet implemented
+    
     return 0;
 }
 
