@@ -92,8 +92,57 @@ int read_http_request(int fd, char *resource_name) {
 
     return 0;
 }
-
+//TODO Calvin has been working on this.
 int write_http_response(int fd, const char *resource_path) {
-    // TODO Not yet implemented
+
+	int sock_fd_copy = dup(fd);
+
+    	if (sock_fd_copy == -1) {
+        	perror("dup");
+        	return -1;
+    	}
+
+    	FILE *socket_stream = fdopen(sock_fd_copy, "w");
+    	if (socket_stream == NULL) {
+        	perror("fdopen");
+        	close(sock_fd_copy);
+        	return -1;
+    	}
+    	if (setvbuf(socket_stream, NULL, _IOFBF, BUFSIZE) != 0) { //now buffering is better
+        	perror("setvbuf");
+        	fclose(socket_stream);
+        	return -1;
+    	}
+	struct stat sb;
+	if(stat(resource_path,&sb) == -1){
+		if (errno == ENOENT){
+			sendresponse(404,sock_fd_copy, 0, 0);
+		}
+		else{ perror("stat");
+		// should there be more here? #TODO should this return -1 on empty?
+		close(sock_fd_copy);
+		}
+		return -1;
+	}
+	off_t content_length = sb.st_size;
+	
+	//sb.st_size; ??
+
+
     return 0;
+}
+
+int sendresponse(int status, int destination,int content_length, unsigned int target_resource) {	
+	char message[BUFSIZE];
+	if(status == 404){
+		fprintf(message, sizeof(message),"HTTP/1.0 404 Not Found\r\n");
+	}
+	else {
+		snprintf(message, sizeof(message), "HTTP/1.0 200 OK\r\n");
+	}
+	snprintf(message + strlen(message), sizeof(message) + strlen(message), "Content-Length: %d", content_length); 
+	snprintf(message + strlen(message), sizeof(message) + strlen(message), "\r\n"); 
+	while content_length > 0
+
+	}
 }
