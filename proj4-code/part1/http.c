@@ -108,11 +108,11 @@ int write_http_response(int fd, const char *resource_path) {
         	close(sock_fd_copy);
         	return -1;
     	}
-    	if (setvbuf(socket_stream, NULL, _IOFBF, BUFSIZE) != 0) { //now buffering is better
-        	perror("setvbuf");
-        	fclose(socket_stream);
-        	return -1;
-    	}
+//    	if (setvbuf(socket_stream, NULL, _IOFBF, BUFSIZE) != 0) { //now buffering is better
+ //       	perror("setvbuf");
+ //	      	fclose(socket_stream);
+  //      	return -1;
+   // 	}
 	struct stat sb;
 	if(stat(resource_path,&sb) == -1){
 		if (errno == ENOENT){
@@ -125,6 +125,7 @@ int write_http_response(int fd, const char *resource_path) {
 		return -1;
 	}
 	off_t content_length = sb.st_size;
+	sendresponse(200, (int) content_length, resource_path); // this might need to be a pointer 
 	
 	//sb.st_size; ??
 
@@ -132,17 +133,19 @@ int write_http_response(int fd, const char *resource_path) {
     return 0;
 }
 
-int sendresponse(int status, int destination,int content_length, unsigned int target_resource) {	
+int sendresponse(int status, int destination,int content_length, int target_resource) {	
 	char message[BUFSIZE];
 	if(status == 404){
-		fprintf(message, sizeof(message),"HTTP/1.0 404 Not Found\r\n");
+		snprintf(message, sizeof(message),"HTTP/1.0 404 Not Found\r\n");
 	}
 	else {
 		snprintf(message, sizeof(message), "HTTP/1.0 200 OK\r\n");
+		snprintf(message + strlen(message), sizeof(message) - strlen(message), "Content-Type: %s\r\n", get_mime_type(&target_resource[strlen(target_resource)-5]));//TODO should this be -4?
 	}
-	snprintf(message + strlen(message), sizeof(message) + strlen(message), "Content-Length: %d", content_length); 
-	snprintf(message + strlen(message), sizeof(message) + strlen(message), "\r\n"); 
-	while content_length > 0
-
-	}
+	snprintf(message + strlen(message), sizeof(message) - strlen(message), "Content-Length: %d", content_length); 
+	snprintf(message + strlen(message), sizeof(message) - strlen(message), "\r\n\r\n"); 
+//	while content_length > 0
+	return 0;
+		
+//	}
 }

@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     // Uncomment the lines below to use these definitions:
-    const char *serve_dir = argv[1];
+    //const char *serve_dir = argv[1];
     const char *port = argv[2];
 
     // Handling SIGINT
