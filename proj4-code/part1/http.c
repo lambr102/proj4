@@ -72,10 +72,10 @@ int read_http_request(int fd, char *resource_name) {
 
     int len = strlen(buf);
     for (int i = 0; i < len; i ++){
-        if (buf[i] == "/"){
+        if (buf[i] == '/'){
             int j = i;
             int k = 0;
-            while (buf[j] != " "){
+            while (buf[j] != ' '){
                 resource_name[k] = buf[j];
                 j ++;
                 k++;
@@ -91,6 +91,22 @@ int read_http_request(int fd, char *resource_name) {
 
 
     return 0;
+}
+int sendresponse(int status, int destination,int content_length, const char *target_resource) {	
+	char message[BUFSIZE];
+	if(status == 404){
+		snprintf(message, sizeof(message),"HTTP/1.0 404 Not Found\r\n");
+	}
+	else {
+		snprintf(message, sizeof(message), "HTTP/1.0 200 OK\r\n");
+		snprintf(message + strlen(message), sizeof(message) - strlen(message), "Content-Type: %s\r\n", get_mime_type(&target_resource[strlen(target_resource)-6]));//TODO should this be -4?
+	}
+	snprintf(message + strlen(message), sizeof(message) - strlen(message), "Content-Length: %d", content_length); 
+	snprintf(message + strlen(message), sizeof(message) - strlen(message), "\r\n\r\n"); 
+//	while content_length > 0
+	return 0;
+		
+//	}
 }
 //TODO Calvin has been working on this.
 int write_http_response(int fd, const char *resource_path) {
@@ -125,7 +141,7 @@ int write_http_response(int fd, const char *resource_path) {
 		return -1;
 	}
 	off_t content_length = sb.st_size;
-	sendresponse(200, (int) content_length, resource_path); // this might need to be a pointer 
+	sendresponse(200, sock_fd_copy, (int) content_length, resource_path); // this might need to be a pointer 
 	
 	//sb.st_size; ??
 
@@ -133,19 +149,4 @@ int write_http_response(int fd, const char *resource_path) {
     return 0;
 }
 
-int sendresponse(int status, int destination,int content_length, int target_resource) {	
-	char message[BUFSIZE];
-	if(status == 404){
-		snprintf(message, sizeof(message),"HTTP/1.0 404 Not Found\r\n");
-	}
-	else {
-		snprintf(message, sizeof(message), "HTTP/1.0 200 OK\r\n");
-		snprintf(message + strlen(message), sizeof(message) - strlen(message), "Content-Type: %s\r\n", get_mime_type(&target_resource[strlen(target_resource)-5]));//TODO should this be -4?
-	}
-	snprintf(message + strlen(message), sizeof(message) - strlen(message), "Content-Length: %d", content_length); 
-	snprintf(message + strlen(message), sizeof(message) - strlen(message), "\r\n\r\n"); 
-//	while content_length > 0
-	return 0;
-		
-//	}
-}
+
