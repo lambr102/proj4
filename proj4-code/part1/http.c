@@ -100,67 +100,6 @@ int read_http_request(int fd, char *resource_name) {
     return 0;
 }
 
-int write_contents(FILE *dest, const char *source){
-    char block[BUFSIZE];
-    FILE *origin = fopen(source,"rb");
-    if(origin == NULL){
-        return -1;
-    }
-    size_t readed;
-    while((readed = fread(block,1,BLOCK_SIZE,origin)) == BLOCK_SIZE){
-        if (ferror(origin)){
-            fclose(origin);
-            printf("Error while reading from source");
-            return -1;
-        }
-        size_t written = fwrite(block,1,BLOCK_SIZE, dest);
-
-        if (ferror(dest)){
-            fclose(dest);
-            printf("Error while writing to dest");
-            return -1;
-        }
-        if(written < BLOCK_SIZE){
-            fclose(origin);
-            return -1;
-        }
-    }
-    if(readed > 0){
-        size_t written = fwrite(block,1, readed, dest);
-        if (ferror(dest)){
-            printf("Error while writing to dest");
-            return -1;
-        }
-        if(written < readed){
-            fclose(origin);
-            return -1;
-        }
-        memset(block, 0, BLOCK_SIZE);
-        written = fwrite(block,1,(BLOCK_SIZE - readed), dest);
-        if (ferror(dest)){
-            fclose(dest);
-            printf("Error while writing to dest");
-            return -1;
-        }
-        if(written < (BLOCK_SIZE - readed)){
-            fclose(origin);
-            return -1;
-        }
-    }
-
-    if(ferror(dest) != 0){
-        fclose(origin);
-        return -1;
-
-    }
-
-    fclose(origin);
-
-    return 0;
-
-
-}
-
 
 int sendresponse(int status, int destination,int content_length, const char *target_resource) {	
 	char message[BUFSIZE];
@@ -175,15 +114,32 @@ int sendresponse(int status, int destination,int content_length, const char *tar
 	snprintf(message + strlen(message), sizeof(message) - strlen(message), "\r\n\r\n"); 
 	if (write(destination, message, strlen(message)) == -1){
 		/// error checking?
+		close(destination);// should this be here?
         	return -1;
     		}
 
-	while (content_length > 0){
-		write_contents(destination, target_resource);
-		if (write(destination, message, strlen(message)) == -1){
-		/// error checking?
-        	return -1;
-    		}
+	if (status == 200){ //technically we might not need this check but i wrote it so here we are
+		int fd = open(target_resource, O_RDONLY);
+		if (fd == -1){
+			perror("open");
+			return -1;
+		}
+		char buffer[BUFSIZE]; // we could reuse message.	
+		ssize_t readin;
+		while ((readin = read(fd, buffer, BUFSIZE)) > 0){
+			if (write(destination, buffer, readin) == -1){
+				perror("write to dest");
+				close(fd);
+				return -1;
+			}
+		}
+		// do we need one more?
+		if (readin == -1){
+			perror("read");
+			close(fd);
+			return -1;
+		}	
+		close(fd);
 	}
 	return 0;
 		
