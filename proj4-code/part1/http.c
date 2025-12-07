@@ -47,11 +47,17 @@ int read_http_request(int fd, char *resource_name) {
     }
 
     char buf[BUFSIZE];
-    while (fgets(buf, BUFSIZE, socket_stream) != NULL) {
-        if (strcmp(buf, "\r\n") == 0) {
-            break;
-        }
+    if (fgets(buf, BUFSIZE, socket_stream) == NULL) {
+      fclose(socket_stream);
+      return -1;
     }
+
+    //char buf[BUFSIZE];
+    //while (fgets(buf, BUFSIZE, socket_stream) != NULL) {
+    //    if (strcmp(buf, "\r\n") == 0) {
+    //        break;
+    //    }
+    //}
 
     if (ferror(socket_stream)) {
         perror("fgets");
@@ -65,10 +71,10 @@ int read_http_request(int fd, char *resource_name) {
     }
 
 
-    int bytes_read;
-    while ((bytes_read = read(fd, buf, BUFSIZE)) > 0) {
-        continue;
-    }
+    //int bytes_read;
+    //while ((bytes_read = read(fd, buf, BUFSIZE)) > 0) { // this hangs because wait for read
+    //    continue;
+    //}
 
     int len = strlen(buf);
     for (int i = 0; i < len; i ++){
@@ -80,18 +86,82 @@ int read_http_request(int fd, char *resource_name) {
                 j ++;
                 k++;
             }
+	    resource_name[k] = '\0';
             break;
         }
     }
-
-    if (close(fd) != 0) {
-        perror("close");
-        return -1;
-    }
+    // this no beuno, closes for the larger calling function too!
+    //if (close(fd) != 0) {
+    //  perror("close");
+    //    return -1;
+    //}
 
 
     return 0;
 }
+
+int write_contents(FILE *dest, const char *source){
+    char block[BUFSIZE];
+    FILE *origin = fopen(source,"rb");
+    if(origin == NULL){
+        return -1;
+    }
+    size_t readed;
+    while((readed = fread(block,1,BLOCK_SIZE,origin)) == BLOCK_SIZE){
+        if (ferror(origin)){
+            fclose(origin);
+            printf("Error while reading from source");
+            return -1;
+        }
+        size_t written = fwrite(block,1,BLOCK_SIZE, dest);
+
+        if (ferror(dest)){
+            fclose(dest);
+            printf("Error while writing to dest");
+            return -1;
+        }
+        if(written < BLOCK_SIZE){
+            fclose(origin);
+            return -1;
+        }
+    }
+    if(readed > 0){
+        size_t written = fwrite(block,1, readed, dest);
+        if (ferror(dest)){
+            printf("Error while writing to dest");
+            return -1;
+        }
+        if(written < readed){
+            fclose(origin);
+            return -1;
+        }
+        memset(block, 0, BLOCK_SIZE);
+        written = fwrite(block,1,(BLOCK_SIZE - readed), dest);
+        if (ferror(dest)){
+            fclose(dest);
+            printf("Error while writing to dest");
+            return -1;
+        }
+        if(written < (BLOCK_SIZE - readed)){
+            fclose(origin);
+            return -1;
+        }
+    }
+
+    if(ferror(dest) != 0){
+        fclose(origin);
+        return -1;
+
+    }
+
+    fclose(origin);
+
+    return 0;
+
+
+}
+
+
 int sendresponse(int status, int destination,int content_length, const char *target_resource) {	
 	char message[BUFSIZE];
 	if(status == 404){
@@ -99,20 +169,32 @@ int sendresponse(int status, int destination,int content_length, const char *tar
 	}
 	else {
 		snprintf(message, sizeof(message), "HTTP/1.0 200 OK\r\n");
-		snprintf(message + strlen(message), sizeof(message) - strlen(message), "Content-Type: %s\r\n", get_mime_type(&target_resource[strlen(target_resource)-6]));//TODO should this be -4?
+		snprintf(message + strlen(message), sizeof(message) - strlen(message), "Content-Type: %s\r\n", get_mime_type(&target_resource[strlen(target_resource)-4]));
 	}
 	snprintf(message + strlen(message), sizeof(message) - strlen(message), "Content-Length: %d", content_length); 
 	snprintf(message + strlen(message), sizeof(message) - strlen(message), "\r\n\r\n"); 
-//	while content_length > 0
+	if (write(destination, message, strlen(message)) == -1){
+		/// error checking?
+        	return -1;
+    		}
+
+	while (content_length > 0){
+		write_contents(destination, target_resource);
+		if (write(destination, message, strlen(message)) == -1){
+		/// error checking?
+        	return -1;
+    		}
+	}
 	return 0;
 		
 //	}
 }
 //TODO Calvin has been working on this.
 int write_http_response(int fd, const char *resource_path) {
-
+	
+	//printf("before write dup");
 	int sock_fd_copy = dup(fd);
-
+	//printf("after write dup");
     	if (sock_fd_copy == -1) {
         	perror("dup");
         	return -1;

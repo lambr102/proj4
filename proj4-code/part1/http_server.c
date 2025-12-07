@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     // Uncomment the lines below to use these definitions:
-    //const char *serve_dir = argv[1];
+    const char *serve_dir = argv[1];
     const char *port = argv[2];
 
     // Handling SIGINT
@@ -85,7 +85,14 @@ int main(int argc, char **argv) {
                 break;
             }
         }
+	char resources_to_get[256] = {0}; // arbitrary size for now, maybe should change
+	if (!read_http_request(client_fd, resources_to_get)){
+		char absolute_path[512]; // again arbitary size
+		snprintf(absolute_path, sizeof(resources_to_get), "%s%s", serve_dir, resources_to_get); 
+		write_http_response(client_fd, absolute_path);				
+	}
     }
+    close(sock_fd);
 
     return 0;
 }
