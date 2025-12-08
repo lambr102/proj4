@@ -44,7 +44,13 @@ int connection_queue_dequeue(connection_queue_t *queue) {
         pthread_cond_wait(&queue->queue_empty, &queue->lock);
     }
     if (queue->shutdown){
+        while (queue->length != 0){
+            queue->client_fds[queue->read_idx] = 0;
+            queue->read_idx = (queue->read_idx +1) % CAPACITY;
+            queue->length --;
+        }
         pthread_mutex_unlock(&queue->lock);
+        return -1;
     }
 
     int returning_fd;
@@ -63,11 +69,17 @@ int connection_queue_dequeue(connection_queue_t *queue) {
 }
 
 int connection_queue_shutdown(connection_queue_t *queue) {
-    // TODO Not yet implemented
+    pthread_mutex_lock(&queue->lock);
+    queue -> shutdown = 1;
+    pthread_cond_broadcast(&queue->queue_empty);
+    pthread_cond_broadcast(&queue->queue_full);
+    pthread_mutex_unlock(&queue->lock);
     return 0;
 }
 
 int connection_queue_free(connection_queue_t *queue) {
-    // TODO Not yet implemented
+    pthread_mutex_destroy(&queue->lock);
+    pthread_cond_destroy(&queue->queue_empty);
+    pthread_cond_destroy(&queue->queue_full);
     return 0;
 }
