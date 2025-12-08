@@ -1,3 +1,4 @@
 $ ./http_server server_files $PORT
+bind: Address already in use
 $ exit
 exit

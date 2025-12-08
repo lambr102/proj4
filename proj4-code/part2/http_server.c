@@ -25,6 +25,22 @@ void handle_sigint(int signo) {
     keep_going = 0;
 }
 
+void *worker_thread_function(void *arg){
+    connection_queue_t *queue = (connection_queue_t*) arg;
+    while (keep_going != 0){
+        int fd = connection_queue_dequeue(queue);
+	    char resources_to_get[256] = {0}; // arbitrary size for now, maybe should change
+        if (!read_http_request(fd, resources_to_get)){
+
+            char absolute_path[512]; // again arbitary size
+            snprintf(absolute_path, sizeof(resources_to_get), "%s%s", serve_dir, resources_to_get);
+            write_http_response(fd, absolute_path);
+	    }
+        close(fd);
+    }
+    return NULL;
+}
+
 
 int main(int argc, char **argv) {
    // First argument is directory to serve, second is port
@@ -36,10 +52,12 @@ int main(int argc, char **argv) {
     serve_dir = argv[1];
     const char *port = argv[2];
 
+    connection_queue_t queue;
+    connection_queue_init(&queue);
 
     // Handling SIGINT
     struct sigaction sigact;
-    sigset_t oset;
+    sigset_t newset, oset;
     sigact.sa_handler = handle_sigint;
     sigfillset(&sigact.sa_mask);
     sigact.sa_flags = 0;
@@ -81,9 +99,21 @@ int main(int argc, char **argv) {
         close(sock_fd);
         return 1;
     }
-    sigprocmask(SIG_BLOCK, &sigact.sa_mask, &oset);
+    sigfillset(&newset);
+    sigprocmask(SIG_BLOCK, &newset, &oset);
+
+    int result;
+    pthread_t worker_threads[N_THREADS];
+    for (int i = 0; i < N_THREADS; i++) {
+        if ((result = pthread_create(worker_threads + i, NULL, worker_thread_function,
+                                     &queue)) != 0) {
+            fprintf(stderr, "pthread_create: %s\n", strerror(result));
+            return 1;
+        }
+    }
 
 
+    sigprocmask( SIG_SETMASK, &oset, NULL );
 
 
     while (keep_going != 0){
@@ -97,14 +127,15 @@ int main(int argc, char **argv) {
                 break;
             }
         }
-	    char resources_to_get[256] = {0}; // arbitrary size for now, maybe should change
-        if (!read_http_request(client_fd, resources_to_get)){
-            char absolute_path[512]; // again arbitary size
-            snprintf(absolute_path, sizeof(resources_to_get), "%s%s", serve_dir, resources_to_get);
-            write_http_response(client_fd, absolute_path);
-	    }
+        connection_queue_enqueue(&queue, client_fd);
     }
-    close(sock_fd);
+    connection_queue_shutdown(&queue);
+    for (int i = 0; i < N_THREADS; i++) {
+        if ((result = pthread_join(worker_threads[i], NULL)) != 0) {
+            fprintf(stderr, "pthread_join: %s\n", strerror(result));
+        }
+    }
+    connection_queue_free(&queue);
 
     return 0;
 }

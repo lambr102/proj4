@@ -1,4 +1,13 @@
 -- Runs HTTP Server
 Expected output is in file 'test_results/raw/project_04-1-2-expected.tmp'
 Actual output is in file 'test_results/raw/project_04-1-2-actual.tmp'
-Test PASSED
+Test FAILED
+== Side-by-Side Comparison ==
+== Differing lines have a character like '|' '>' or '<' in the middle
+==== EXPECT ====                     ==== ACTUAL ====
+$ ./http_server server_files $PORT   $ ./http_server server_files $PORT
+                                   > bind: Address already in use
+$ exit                               $ exit
+exit                                 exit
+== Line Differences ==
+ACTUAL 2) bind: Address already in use
