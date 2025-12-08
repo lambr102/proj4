@@ -4,17 +4,44 @@
 #include <string.h>
 
 int connection_queue_init(connection_queue_t *queue) {
-    
+    queue -> length = 0;
+    queue -> shutdown = 0;
+    queue -> write_idx = 0;
+    queue -> read_idx = -1;
+    pthread_mutex_init(&queue->lock, NULL);
+    pthread_cond_init(&queue->queue_full, NULL);
+    pthread_cond_init(&queue->queue_empty, NULL);
     return 0;
 }
 
 int connection_queue_enqueue(connection_queue_t *queue, int connection_fd) {
     // TODO Not yet implemented
+    pthread_mutex_lock(&queue->lock);
+    while(queue->length == CAPACITY){
+        pthread_cond_wait(&queue->queue_full, &queue->lock);
+    }
+    if ((queue->length != CAPACITY) && !queue->shutdown){
+        queue->client_fds[queue->write_idx] = connection_fd;
+        queue->read_idx = queue -> write_idx;
+        queue->write_idx ++;
+        if (queue->write_idx >= CAPACITY){
+            queue->write_idx = queue->write_idx % CAPACITY;
+        }
+        queue ->length++;
+    }
+    pthread_cond_signal(&queue->queue_empty);
+    pthread_mutex_unlock(&queue->lock);
+
     return 0;
 }
 
 int connection_queue_dequeue(connection_queue_t *queue) {
-    // TODO Not yet implemented
+
+    pthread_mutex_lock(&queue->lock);
+    while(queue->length == 0){
+        pthread_cond_wait(&queue->queue_empty, &queue->lock);
+    }
+
     return 0;
 }
 
