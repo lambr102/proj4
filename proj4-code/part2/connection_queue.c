@@ -40,11 +40,26 @@ int connection_queue_enqueue(connection_queue_t *queue, int connection_fd) {
 int connection_queue_dequeue(connection_queue_t *queue) {
 
     pthread_mutex_lock(&queue->lock);
-    while(queue->length == 0){
+    while(queue->length == 0 && !queue->shutdown){
         pthread_cond_wait(&queue->queue_empty, &queue->lock);
     }
+    if (queue->shutdown){
+        pthread_mutex_unlock(&queue->lock);
+    }
 
-    return 0;
+    int returning_fd;
+
+    returning_fd = queue->client_fds[queue->read_idx];
+    queue->client_fds[queue->read_idx] = 0;
+
+    queue->read_idx = (queue->read_idx +1) % CAPACITY;
+    queue->length --;
+
+    pthread_cond_signal(&queue->queue_full);
+    pthread_mutex_unlock(&queue->lock);
+
+
+    return returning_fd;
 }
 
 int connection_queue_shutdown(connection_queue_t *queue) {
