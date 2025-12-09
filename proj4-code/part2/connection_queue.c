@@ -19,10 +19,15 @@ int connection_queue_enqueue(connection_queue_t *queue, int connection_fd) {
 
     pthread_mutex_lock(&queue->lock);
     while(queue->length == CAPACITY && !queue->shutdown){
-        pthread_cond_wait(&queue->queue_full, &queue->lock);
+        int waiter = pthread_cond_wait(&queue->queue_full, &queue->lock);
+	if (waiter != 0){
+		fprintf(stderr, "pthread_wait: %s\n", strerror(waiter)); // does this need more error checking?
+	}
     }
     if (queue->shutdown){
-        pthread_mutex_unlock(&queue->lock);
+        if(pthread_mutex_unlock(&queue->lock)){
+		perror("pthread_mutex_unlock()");
+	}
         return -1;
     }
 
@@ -32,7 +37,10 @@ int connection_queue_enqueue(connection_queue_t *queue, int connection_fd) {
     queue ->length++;
 
     pthread_cond_signal(&queue->queue_empty);
-    pthread_mutex_unlock(&queue->lock);
+    if(pthread_mutex_unlock(&queue->lock)){
+    	perror("pthread_mutex_unlock");	
+	return -1;
+    }
 
     return 0;
 }
@@ -44,7 +52,9 @@ int connection_queue_dequeue(connection_queue_t *queue) {
         pthread_cond_wait(&queue->queue_empty, &queue->lock);
     }
     if (queue->length == 0 && queue->shutdown){
-        pthread_mutex_unlock(&queue->lock);
+        if(pthread_mutex_unlock(&queue->lock)){
+		perror("pthread_mutex_unlock");	
+	}
         return -1; //this needs error checking in the larger function because it will be treated as a fd, that was our bug
     }
 
@@ -57,18 +67,27 @@ int connection_queue_dequeue(connection_queue_t *queue) {
     queue->length --;
 
     pthread_cond_signal(&queue->queue_full);
-    pthread_mutex_unlock(&queue->lock);
+    if(pthread_mutex_unlock(&queue->lock)){
+    	perror("pthread_mutex_unlock");
+	return -1;
+    }
 
 
     return returning_fd;
 }
 
 int connection_queue_shutdown(connection_queue_t *queue) {
-    pthread_mutex_lock(&queue->lock);
+    if(pthread_mutex_lock(&queue->lock)){
+    	perror("pthread_mutex_lock");
+	return -1;
+    }
     queue -> shutdown = 1;
     pthread_cond_broadcast(&queue->queue_empty);
     pthread_cond_broadcast(&queue->queue_full);
-    pthread_mutex_unlock(&queue->lock);
+    if(pthread_mutex_unlock(&queue->lock)){
+    	perror("pthread_mutex_unlock"); 
+	return -1;
+    }
     return 0;
 }
 
