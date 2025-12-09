@@ -29,9 +29,9 @@ void *worker_thread_function(void *arg){
     connection_queue_t *queue = (connection_queue_t*) arg;
     while (keep_going != 0){
         int fd = connection_queue_dequeue(queue);
-	if (fd == -1){
-		return NULL;
-	}
+        if (fd == -1){
+            return NULL;
+        }
 	    char resources_to_get[256] = {0}; // arbitrary size for now, maybe should change
         if (!read_http_request(fd, resources_to_get)){
 

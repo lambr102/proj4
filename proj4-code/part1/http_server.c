@@ -34,7 +34,10 @@ int main(int argc, char **argv) {
     // Handling SIGINT
     struct sigaction sigact;
     sigact.sa_handler = handle_sigint;
-    sigfillset(&sigact.sa_mask);
+    if (sigfillset(&sigact.sa_mask) ==-1){
+        perror("sigfillset");
+        return 1;
+    }
     sigact.sa_flags = 0;
     if (sigaction(SIGINT, &sigact, NULL) == -1) {
         perror("sigaction");
@@ -48,9 +51,9 @@ int main(int argc, char **argv) {
     hints.ai_flags = AI_PASSIVE;
     struct addrinfo *server;
 
-    int ret_val = getaddrinfo(NULL, port, &hints, &server);
-    if (ret_val != 0) {
-        fprintf(stderr, "getaddrinfo failed: %s\n", gai_strerror(ret_val));
+    int val = getaddrinfo(NULL, port, &hints, &server);
+    if (val != 0) {
+        fprintf(stderr, "getaddrinfo failed: %s\n", gai_strerror(val));
         return 1;
     }
 
@@ -89,7 +92,10 @@ int main(int argc, char **argv) {
         if (!read_http_request(client_fd, resources_to_get)){
             char absolute_path[512]; // again arbitary size
             snprintf(absolute_path, sizeof(resources_to_get), "%s%s", serve_dir, resources_to_get);
-            write_http_response(client_fd, absolute_path);
+            if (write_http_response(client_fd, absolute_path) == -1){
+                perror("write_http_response");
+                return 1;
+            }
 	    }
     }
     close(sock_fd);
