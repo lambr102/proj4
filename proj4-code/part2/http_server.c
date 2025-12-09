@@ -32,9 +32,8 @@ void *worker_thread_function(void *arg){
 	if (fd == -1){
 		return NULL;
 	}
-	    char resources_to_get[256] = {0}; // arbitrary size for now, maybe should change
+	char resources_to_get[256] = {0}; // arbitrary size for now, maybe should change
         if (!read_http_request(fd, resources_to_get)){
-
             char absolute_path[512]; // again arbitary size
             snprintf(absolute_path, sizeof(resources_to_get), "%s%s", serve_dir, resources_to_get);
             write_http_response(fd, absolute_path);
@@ -115,9 +114,7 @@ int main(int argc, char **argv) {
         }
     }
 
-
     sigprocmask( SIG_SETMASK, &oset, NULL );
-
 
     while (keep_going != 0){
         int client_fd = accept(sock_fd, NULL, NULL);
