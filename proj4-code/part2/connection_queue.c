@@ -43,14 +43,9 @@ int connection_queue_dequeue(connection_queue_t *queue) {
     while(queue->length == 0 && !queue->shutdown){
         pthread_cond_wait(&queue->queue_empty, &queue->lock);
     }
-    if (queue->shutdown){
-        while (queue->length != 0){
-            queue->client_fds[queue->read_idx] = 0;
-            queue->read_idx = (queue->read_idx +1) % CAPACITY;
-            queue->length --;
-        }
+    if (queue->length == 0 && queue->shutdown){
         pthread_mutex_unlock(&queue->lock);
-        return -1;
+        return -1; //this needs error checking in the larger function because it will be treated as a fd, that was our bug
     }
 
     int returning_fd;
@@ -79,7 +74,8 @@ int connection_queue_shutdown(connection_queue_t *queue) {
 
 int connection_queue_free(connection_queue_t *queue) {
     pthread_mutex_destroy(&queue->lock);
-    pthread_cond_destroy(&queue->queue_empty);
     pthread_cond_destroy(&queue->queue_full);
+    pthread_cond_destroy(&queue->queue_empty);
+
     return 0;
 }

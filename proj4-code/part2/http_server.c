@@ -29,6 +29,9 @@ void *worker_thread_function(void *arg){
     connection_queue_t *queue = (connection_queue_t*) arg;
     while (keep_going != 0){
         int fd = connection_queue_dequeue(queue);
+	if (fd == -1){
+		return NULL;
+	}
 	    char resources_to_get[256] = {0}; // arbitrary size for now, maybe should change
         if (!read_http_request(fd, resources_to_get)){
 
@@ -129,6 +132,7 @@ int main(int argc, char **argv) {
         }
         connection_queue_enqueue(&queue, client_fd);
     }
+
     connection_queue_shutdown(&queue);
     for (int i = 0; i < N_THREADS; i++) {
         if ((result = pthread_join(worker_threads[i], NULL)) != 0) {
